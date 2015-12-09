@@ -44,6 +44,8 @@ public class TransactionOutput extends ChildMessage {
     // this output.
     private byte[] scriptBytes;
 
+    private byte[] commitment, rangeProof, nonceCommitment;
+
     // The script bytes are parsed and turned into a Script on demand.
     private Script scriptPubKey;
 
@@ -156,8 +158,13 @@ public class TransactionOutput extends ChildMessage {
     }
 
     @Override
+
     protected void parse() throws ProtocolException {
-        value = readInt64();
+        commitment = readBytes(33);
+        int rangeProofLen = (int)readVarInt();
+        rangeProof = readBytes(rangeProofLen);
+        int nonceCommitmentLen = (int)readVarInt();
+        nonceCommitment = readBytes(nonceCommitmentLen);
         scriptLen = (int) readVarInt();
         length = cursor - offset + scriptLen;
         scriptBytes = readBytes(scriptLen);
@@ -426,5 +433,17 @@ public class TransactionOutput extends ChildMessage {
     @Override
     public int hashCode() {
         return Objects.hashCode(value, parent, Arrays.hashCode(scriptBytes));
+    }
+
+    public byte[] getCommitment() {
+        return commitment;
+    }
+
+    public byte[] getRangeProof() {
+        return rangeProof;
+    }
+
+    public byte[] getNonceCommitment() {
+        return nonceCommitment;
     }
 }

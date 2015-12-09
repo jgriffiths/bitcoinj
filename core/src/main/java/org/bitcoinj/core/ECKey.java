@@ -642,6 +642,14 @@ public class ECKey implements EncryptableItem {
         }
     }
 
+    public byte[] ecdh(byte[] pubkey) {
+        try {
+            return NativeSecp256k1.createECDHSecret(priv.toByteArray(), pubkey);
+        } catch (NativeSecp256k1Util.AssertFailException e) {
+            throw new RuntimeException();
+        }
+    }
+
     /**
      * If this global variable is set to true, sign() creates a dummy signature and verify() always returns true.
      * This is intended to help accelerate unit tests that do a lot of signing/verifying, which in the debugger

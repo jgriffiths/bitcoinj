@@ -118,6 +118,8 @@ public class Transaction extends ChildMessage {
     private ArrayList<TransactionInput> inputs;
     private ArrayList<TransactionOutput> outputs;
 
+    private BigInteger fee;
+
     private long lockTime;
 
     // This is either the time the transaction was broadcast as measured from the local clock, or the time from the
@@ -570,6 +572,7 @@ public class Transaction extends ChildMessage {
             optimalEncodingMessageSize += TransactionOutPoint.MESSAGE_LENGTH + VarInt.sizeOf(scriptLen) + scriptLen + 4;
             cursor += scriptLen + 4;
         }
+        fee = readUint64();
         // Now the outputs
         long numOutputs = readVarInt();
         optimalEncodingMessageSize += VarInt.sizeOf(numOutputs);
@@ -577,7 +580,11 @@ public class Transaction extends ChildMessage {
         for (long i = 0; i < numOutputs; i++) {
             TransactionOutput output = new TransactionOutput(params, this, payload, cursor, serializer);
             outputs.add(output);
-            long scriptLen = readVarInt(8);
+            long scriptLen = readVarInt(
+                    33 +
+                    VarInt.sizeOf(output.getRangeProof().length) + output.getRangeProof().length +
+                    VarInt.sizeOf(output.getNonceCommitment().length) + output.getNonceCommitment().length
+            );
             optimalEncodingMessageSize += 8 + VarInt.sizeOf(scriptLen) + scriptLen;
             cursor += scriptLen;
         }
