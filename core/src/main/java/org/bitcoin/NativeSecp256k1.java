@@ -523,6 +523,86 @@ public class NativeSecp256k1 {
                                 new BigInteger(retByteArray[1]).longValue());
     }
 
+    public static byte[] pedersenCommit(long value, byte[] blindingFactor) throws AssertFailException {
+        ByteBuffer byteBuff = nativeECDSABuffer.get();
+        int reqLen = blindingFactor.length;
+        if (byteBuff == null || byteBuff.capacity() < reqLen) {
+            byteBuff = ByteBuffer.allocateDirect(reqLen);
+            byteBuff.order(ByteOrder.nativeOrder());
+            nativeECDSABuffer.set(byteBuff);
+        }
+
+        byteBuff.rewind();
+        byteBuff.put(blindingFactor);
+
+        byte[][] retByteArray = secp256k1_pedersen_commit(
+                byteBuff, Secp256k1Context.getContext(), value
+        );
+
+        int retVal = new BigInteger(new byte[] { retByteArray[1][0] }).intValue();
+        assertEquals(retVal, 1, "Failed return value check.");
+        byte[] resArr = retByteArray[0];
+        assertEquals(resArr.length, 33, "Got bad result length." );
+
+        return resArr;
+    }
+
+    public static byte[] pedersenBlindSum(byte[][] blindedValues, int numInputs) throws AssertFailException {
+        ByteBuffer byteBuff = nativeECDSABuffer.get();
+        int reqLen = 32 * blindedValues.length;
+        if (byteBuff == null || byteBuff.capacity() < reqLen) {
+            byteBuff = ByteBuffer.allocateDirect(reqLen);
+            byteBuff.order(ByteOrder.nativeOrder());
+            nativeECDSABuffer.set(byteBuff);
+        }
+
+        byteBuff.rewind();
+        for (int i = 0; i < blindedValues.length; ++i) {
+            assertEquals(blindedValues[i].length, 32, "Got bad input length.");
+            byteBuff.put(blindedValues[i]);
+        }
+
+        byte[][] retByteArray = secp256k1_pedersen_blind_sum(
+                byteBuff,
+                Secp256k1Context.getContext(),
+                blindedValues.length,
+                numInputs
+        );
+
+        int retVal = new BigInteger(new byte[] { retByteArray[1][0] }).intValue();
+        assertEquals(retVal, 1, "Failed return value check.");
+        byte[] resArr = retByteArray[0];
+        assertEquals(resArr.length, 32, "Got bad result length." );
+
+        return resArr;
+    }
+
+    public static byte[] rangeProofSign(byte[] commitment, byte[] blindingFactor, byte[] nonce, long value) throws AssertFailException {
+        ByteBuffer byteBuff = nativeECDSABuffer.get();
+        int reqLen = commitment.length + blindingFactor.length + nonce.length;
+        if (byteBuff == null || byteBuff.capacity() < reqLen) {
+            byteBuff = ByteBuffer.allocateDirect(reqLen);
+            byteBuff.order(ByteOrder.nativeOrder());
+            nativeECDSABuffer.set(byteBuff);
+        }
+
+        byteBuff.rewind();
+        byteBuff.put(commitment);
+        byteBuff.put(blindingFactor);
+        byteBuff.put(nonce);
+
+        byte[][] retByteArray = secp256k1_rangeproof_sign(
+                byteBuff,
+                Secp256k1Context.getContext(),
+                value
+        );
+
+        int retVal = new BigInteger(new byte[] { retByteArray[1][0] }).intValue();
+        assertEquals(retVal, 1, "Failed return value check.");
+
+        return retByteArray[0];
+    }
+
     private static native long secp256k1_ctx_clone(long context);
 
     private static native int secp256k1_context_randomize(ByteBuffer byteBuff, long context);
@@ -554,4 +634,10 @@ public class NativeSecp256k1 {
     private static native byte[][] secp256k1_ecdh(ByteBuffer byteBuff, long context);
 
     private static native byte[][] secp256k1_rangeproof_rewind(ByteBuffer byteBuff, long context, int rangeProofLen);
+
+    private static native byte[][] secp256k1_pedersen_commit(ByteBuffer byteBuff, long context, long value);
+
+    private static native byte[][] secp256k1_pedersen_blind_sum(ByteBuffer byteBuff, long context, int numFactors, int numInputs);
+
+    private static native byte[][] secp256k1_rangeproof_sign(ByteBuffer byteBuff, long context, long value);
 }

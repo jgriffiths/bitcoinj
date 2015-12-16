@@ -50,6 +50,8 @@ public class TransactionInput extends ChildMessage {
     // Magic outpoint index that indicates the input is in fact unconnected.
     private static final long UNCONNECTED = 0xFFFFFFFFL;
 
+    public TransactionOutput prevOut;
+
     // Allows for altering transactions after they were broadcast. Values below NO_SEQUENCE-1 mean it can be altered.
     private long sequence;
     // Data needed to connect to the output of the transaction we're gathering coins from.
@@ -142,6 +144,20 @@ public class TransactionInput extends ChildMessage {
     @Override
     protected void bitcoinSerializeToStream(OutputStream stream) throws IOException {
         outpoint.bitcoinSerialize(stream);
+        stream.write(new VarInt(scriptBytes.length).encode());
+        stream.write(scriptBytes);
+        Utils.uint32ToByteStreamLE(sequence, stream);
+    }
+
+    protected void bitcoinSerializeForCTSigning(OutputStream stream) throws IOException {
+        outpoint.bitcoinSerialize(stream);
+
+        stream.write(prevOut.getCommitment());
+        stream.write(new VarInt(prevOut.getRangeProof().length).encode());
+        stream.write(prevOut.getRangeProof());
+        stream.write(new VarInt(prevOut.getNonceCommitment().length).encode());
+        stream.write(prevOut.getNonceCommitment());
+
         stream.write(new VarInt(scriptBytes.length).encode());
         stream.write(scriptBytes);
         Utils.uint32ToByteStreamLE(sequence, stream);

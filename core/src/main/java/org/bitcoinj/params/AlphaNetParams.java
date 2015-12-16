@@ -19,6 +19,10 @@
 package org.bitcoinj.params;
 
 
+import org.bitcoinj.core.Transaction;
+
+import java.math.BigInteger;
+
 /**
  * Parameters for alpha, a sidechain of Bitcoin TestNetV3
  */
@@ -31,6 +35,12 @@ public class AlphaNetParams extends TestNet3Params {
         };
         packetMagic = 0xa11ffa;
         port = 4242;
+
+        Transaction genesisTx = genesisBlock.getTransactions().get(0);
+        genesisTx.setFeeCT(BigInteger.ZERO);
+        genesisTx.getOutput(0).setRangeProof(new byte[]{});
+        genesisTx.getOutput(0).setCommitment(new byte[]{});
+        genesisTx.getOutput(0).setNonceCommitment(new byte[]{});
     }
 
     private static AlphaNetParams instance;

@@ -32,6 +32,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongycastle.util.encoders.Hex;
 
 import javax.annotation.Nullable;
 import java.io.*;
@@ -118,7 +119,7 @@ public class Transaction extends ChildMessage {
     private ArrayList<TransactionInput> inputs;
     private ArrayList<TransactionOutput> outputs;
 
-    private BigInteger fee;
+    private BigInteger feeCT;
 
     private long lockTime;
 
@@ -409,6 +410,10 @@ public class Transaction extends ChildMessage {
         return result;
     }
 
+    public void setFeeCT(BigInteger feeCT) {
+        this.feeCT = feeCT;
+    }
+
     /**
      * The transaction fee is the difference of the value of all inputs and the value of all outputs. Currently, the fee
      * can only be determined for transactions created by us.
@@ -572,7 +577,9 @@ public class Transaction extends ChildMessage {
             optimalEncodingMessageSize += TransactionOutPoint.MESSAGE_LENGTH + VarInt.sizeOf(scriptLen) + scriptLen + 4;
             cursor += scriptLen + 4;
         }
-        fee = readUint64();
+        if (params.getId().equals(NetworkParameters.ID_ALPHANET)) {
+            feeCT = readUint64();
+        }
         // Now the outputs
         long numOutputs = readVarInt();
         optimalEncodingMessageSize += VarInt.sizeOf(numOutputs);
@@ -580,11 +587,14 @@ public class Transaction extends ChildMessage {
         for (long i = 0; i < numOutputs; i++) {
             TransactionOutput output = new TransactionOutput(params, this, payload, cursor, serializer);
             outputs.add(output);
-            long scriptLen = readVarInt(
-                    33 +
+            long scriptLen;
+            if (params.getId().equals(NetworkParameters.ID_ALPHANET)) {
+                scriptLen = readVarInt(33 +
                     VarInt.sizeOf(output.getRangeProof().length) + output.getRangeProof().length +
-                    VarInt.sizeOf(output.getNonceCommitment().length) + output.getNonceCommitment().length
-            );
+                    VarInt.sizeOf(output.getNonceCommitment().length) + output.getNonceCommitment().length);
+            } else {
+                scriptLen = readVarInt(8);
+            }
             optimalEncodingMessageSize += 8 + VarInt.sizeOf(scriptLen) + scriptLen;
             cursor += scriptLen;
         }
@@ -1125,18 +1135,63 @@ public class Transaction extends ChildMessage {
         return Sha256Hash.twiceOf(bos.toByteArray());
     }
 
+    public synchronized Sha256Hash hashForCTSignature(int inputIndex, byte[] connectedScript) {
+        try {
+            byte[][] inputScripts = new byte[inputs.size()][];
+            for (int i = 0; i < inputs.size(); i++) {
+                inputScripts[i] = inputs.get(i).getScriptBytes();
+                inputs.get(i).clearScriptBytes();
+            }
+
+            TransactionInput input = inputs.get(inputIndex);
+            input.setScriptBytes(connectedScript);
+
+            ByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(length == UNKNOWN_LENGTH ? 256 : length + 4);
+            bitcoinSerializeForCTSigning(bos);
+            byte sigHashType = (byte) TransactionSignature.calcSigHashValue(SigHash.ALL, false);
+            // We also have to write a hash type (sigHashType is actually an unsigned char)
+            uint32ToByteStreamLE(0x000000ff & sigHashType, bos);
+
+            // Note that this is NOT reversed to ensure it will be signed correctly. If it were to be printed out
+            // however then we would expect that it is IS reversed.
+            Sha256Hash hash = Sha256Hash.twiceOf(bos.toByteArray());
+            bos.close();
+            // Put the transaction back to how we found it.
+            for (int i = 0; i < inputs.size(); i++) {
+                inputs.get(i).setScriptBytes(inputScripts[i]);
+            }
+
+            return hash;
+        } catch (IOException e) {
+            throw new RuntimeException(e);  // Cannot happen.
+        }
+    }
+
     @Override
     protected void bitcoinSerializeToStream(OutputStream stream) throws IOException {
         uint32ToByteStreamLE(version, stream);
         stream.write(new VarInt(inputs.size()).encode());
         for (TransactionInput in : inputs)
             in.bitcoinSerialize(stream);
+        if (params.getId() == NetworkParameters.ID_ALPHANET) {
+            uint64ToByteStreamLE(feeCT, stream);
+        }
         stream.write(new VarInt(outputs.size()).encode());
         for (TransactionOutput out : outputs)
             out.bitcoinSerialize(stream);
         uint32ToByteStreamLE(lockTime, stream);
     }
 
+    protected void bitcoinSerializeForCTSigning(OutputStream stream) throws IOException {
+        uint32ToByteStreamLE(version, stream);
+        stream.write(new VarInt(inputs.size()).encode());
+        for (TransactionInput in : inputs)
+            in.bitcoinSerializeForCTSigning(stream);
+        stream.write(new VarInt(outputs.size()).encode());
+        for (TransactionOutput out : outputs)
+            out.bitcoinSerializeForCTSigning(stream);
+        uint32ToByteStreamLE(lockTime, stream);
+    }
 
     /**
      * Transactions can have an associated lock time, specified either as a block height or in seconds since the
