@@ -6,3 +6,9 @@ target
 *.iml
 *.chain
 *.spvchain
+
+*.class
+
+*.jar
+
+*.bin

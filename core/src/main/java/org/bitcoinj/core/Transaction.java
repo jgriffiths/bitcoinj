@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.*;
+import java.math.BigInteger;
 import java.util.*;
 
 import static org.bitcoinj.core.Utils.*;
@@ -549,6 +550,15 @@ public class Transaction extends ChildMessage {
         version = readUint32();
         optimalEncodingMessageSize = 4;
 
+        final boolean isSegWit;
+        byte[] advancedMarker = readBytes(2);
+        if (advancedMarker[0] == 0 && advancedMarker[1] == 1) {
+            isSegWit = true;
+        } else {
+            isSegWit = false;
+            cursor -= 2;
+        }
+
         // First come the inputs.
         long numInputs = readVarInt();
         optimalEncodingMessageSize += VarInt.sizeOf(numInputs);
@@ -571,6 +581,17 @@ public class Transaction extends ChildMessage {
             optimalEncodingMessageSize += 8 + VarInt.sizeOf(scriptLen) + scriptLen;
             cursor += scriptLen;
         }
+
+        if (isSegWit) {
+            for (long i = 0; i < numInputs; ++i) {
+                final long witnessLen = readVarInt();
+                for (long j = 0; j < witnessLen; ++j) {
+                    long itemLen = readVarInt();
+                    cursor += itemLen;
+                }
+            }
+        }
+
         lockTime = readUint32();
         optimalEncodingMessageSize += 4;
         length = cursor - offset;
@@ -936,6 +957,12 @@ public class Transaction extends ChildMessage {
         return hashForSignature(inputIndex, redeemScript, sigHashType);
     }
 
+    public Sha256Hash hashForSignatureV2(int inputIndex, byte[] redeemScript,
+                                         Coin prevValue, SigHash type, boolean anyoneCanPay) {
+        byte sigHashType = (byte) TransactionSignature.calcSigHashValue(type, anyoneCanPay);
+        return hashForSignatureV2(inputIndex, redeemScript, prevValue, sigHashType);
+    }
+
     /**
      * <p>Calculates a signature hash, that is, a hash of a simplified form of the transaction. How exactly the transaction
      * is simplified is specified by the type and anyoneCanPay parameters.</p>
@@ -1044,6 +1071,51 @@ public class Transaction extends ChildMessage {
         } catch (IOException e) {
             throw new RuntimeException(e);  // Cannot happen.
         }
+    }
+
+    public synchronized Sha256Hash hashForSignatureV2(int inputIndex, byte[] connectedScript, Coin prevValue, byte sigHashType) {
+        ByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(length == UNKNOWN_LENGTH ? 256 : length + 4);
+        try {
+            uint32ToByteStreamLE(version, bos);
+
+            ByteArrayOutputStream bosHashPrevouts = new UnsafeByteArrayOutputStream(256);
+            for (int i = 0; i < this.inputs.size(); ++i) {
+                bosHashPrevouts.write(this.inputs.get(i).getOutpoint().getHash().getReversedBytes());
+                uint32ToByteStreamLE(this.inputs.get(i).getOutpoint().getIndex(), bosHashPrevouts);
+            }
+            bos.write(Sha256Hash.hashTwice(bosHashPrevouts.toByteArray()));
+
+            ByteArrayOutputStream bosSequence = new UnsafeByteArrayOutputStream(256);
+            for (int i = 0; i < this.inputs.size(); ++i) {
+                uint32ToByteStreamLE(this.inputs.get(i).getSequenceNumber(), bosSequence);
+            }
+            bos.write(Sha256Hash.hashTwice(bosSequence.toByteArray()));
+
+            bos.write(inputs.get(inputIndex).getOutpoint().getHash().getReversedBytes());
+            uint32ToByteStreamLE(inputs.get(inputIndex).getOutpoint().getIndex(), bos);
+            bos.write(new VarInt(connectedScript.length).encode());
+            bos.write(connectedScript);
+            uint64ToByteStreamLE(BigInteger.valueOf(prevValue.getValue()), bos);
+            uint32ToByteStreamLE(inputs.get(inputIndex).getSequenceNumber(), bos);
+
+            ByteArrayOutputStream bosHashOutputs = new UnsafeByteArrayOutputStream(256);
+            for (int i = 0; i < this.outputs.size(); ++i) {
+                uint64ToByteStreamLE(
+                        BigInteger.valueOf(this.outputs.get(i).getValue().getValue()),
+                        bosHashOutputs
+                );
+                bosHashOutputs.write(new VarInt(this.outputs.get(i).getScriptBytes().length).encode());
+                bosHashOutputs.write(this.outputs.get(i).getScriptBytes());
+            }
+            bos.write(Sha256Hash.hashTwice(bosHashOutputs.toByteArray()));
+
+            uint32ToByteStreamLE(this.lockTime, bos);
+            uint32ToByteStreamLE(sigHashType, bos);
+        } catch (IOException e) {
+            throw new RuntimeException(e);  // Cannot happen.
+        }
+
+        return Sha256Hash.twiceOf(bos.toByteArray());
     }
 
     @Override

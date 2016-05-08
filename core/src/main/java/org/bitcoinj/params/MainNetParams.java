@@ -21,6 +21,8 @@ import org.bitcoinj.core.*;
 import org.bitcoinj.net.discovery.*;
 
 import java.net.*;
+import java.util.Arrays;
+import java.util.Collections;
 
 import static com.google.common.base.Preconditions.*;
 
@@ -75,14 +77,11 @@ public class MainNetParams extends AbstractBitcoinNetParams {
                 "dnsseed.bluematt.me",         // Matt Corallo
                 "dnsseed.bitcoin.dashjr.org",  // Luke Dashjr
                 "seed.bitcoinstats.com",       // Chris Decker
-                "seed.bitnodes.io",            // Addy Yeow
+                "bitseed.xf2.org",             // Jeff Garzik
+                "bitcoin.jonasschnelli.ch",    // Jonas Schnelli
         };
+        Collections.shuffle(Arrays.asList(dnsSeeds));
         httpSeeds = new HttpDiscovery.Details[] {
-                // Andreas Schildbach
-                new HttpDiscovery.Details(
-                        ECKey.fromPublicOnly(Utils.HEX.decode("0238746c59d46d5408bf8b1d0af5740fe1a6e1703fcb56b2953f0b965c740d256f")),
-                        URI.create("http://httpseed.bitcoin.schildbach.de/peers")
-                )
         };
 
         addrSeeds = new int[] {
