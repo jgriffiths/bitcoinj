@@ -112,6 +112,42 @@ public class NativeSecp256k1 {
         return retVal == 0 ? new byte[0] : sigArr;
     }
 
+    public static byte[] signSchnorr(byte[] data, byte[] sec) throws AssertFailException {
+        while (sec.length > 32 && sec[0] == 0) {
+            sec = Arrays.copyOfRange(sec, 1, sec.length);
+        }
+        Preconditions.checkArgument(data.length == 32 && sec.length <= 32);
+
+        ByteBuffer byteBuff = nativeECDSABuffer.get();
+        if (byteBuff == null) {
+            byteBuff = ByteBuffer.allocateDirect(32 + 32);
+            byteBuff.order(ByteOrder.nativeOrder());
+            nativeECDSABuffer.set(byteBuff);
+        }
+        byteBuff.rewind();
+        byteBuff.put(data);
+        byteBuff.put(sec);
+
+        byte[][] retByteArray;
+
+        r.lock();
+        try {
+          retByteArray = secp256k1_schnorr_sign(byteBuff, Secp256k1Context.getContext());
+        } finally {
+          r.unlock();
+        }
+
+        byte[] sigArr = retByteArray[0];
+        int sigLen = new BigInteger(new byte[] { retByteArray[1][0] }).intValue();
+        int retVal = new BigInteger(new byte[] { retByteArray[1][1] }).intValue();
+
+        assertEquals(sigArr.length,sigLen, "Got bad signature length." );
+
+        if( retVal == 0 ) sigArr = new byte[0];
+
+        return sigArr;
+    }
+
     /**
      * libsecp256k1 Seckey Verify - returns 1 if valid, 0 if invalid
      *

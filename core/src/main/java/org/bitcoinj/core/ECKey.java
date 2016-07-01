@@ -634,6 +634,14 @@ public class ECKey implements EncryptableItem {
         return sign(input, null);
     }
 
+    public byte[] signSchnorr(Sha256Hash input) {
+        try {
+            return NativeSecp256k1.signSchnorr(input.getBytes(), priv.toByteArray());
+        } catch (NativeSecp256k1Util.AssertFailException e) {
+            throw new RuntimeException();
+        }
+    }
+
     /**
      * If this global variable is set to true, sign() creates a dummy signature and verify() always returns true.
      * This is intended to help accelerate unit tests that do a lot of signing/verifying, which in the debugger
