@@ -83,7 +83,7 @@ public class SegNetParams extends AbstractBitcoinNetParams {
     @Override
     public void checkDifficultyTransitions(final StoredBlock storedPrev, final Block nextBlock,
         final BlockStore blockStore) throws VerificationException, BlockStoreException {
-        if (!isDifficultyTransitionPoint(storedPrev)) {
+        if (!isDifficultyTransitionPoint(storedPrev.getHeight())) {
             Block prev = storedPrev.getHeader();
             // Easy blocks are allowed if there has been a span of 20 minutes without one.
             final long timeDelta = nextBlock.getTimeSeconds() - prev.getTimeSeconds();
