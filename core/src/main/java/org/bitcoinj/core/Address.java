@@ -170,18 +170,15 @@ public class Address extends VersionedChecksummedBytes {
         return getHash(params);
     }
 
+    /** Get hash embedded in address. */
     private byte[] getHash(NetworkParameters params) {
-        if (version == params.getAddressHeader())
+        if (bytes.length == 20)
             return bytes;
-        if (version == params.getP2SHHeader())
-            return bytes;
-        if ((version == params.getP2WPKHHeader() || version == params.getP2WSHHeader()) &&
-            bytes[0] == 0x00 && bytes[1] == 0x00) {
-            final byte[] hash = new byte[20];
+        else {
+            final byte[] hash = new byte[bytes.length - 2];
             System.arraycopy(bytes, 2, hash, 0, bytes.length - 2);
             return hash;
         }
-        throw new IllegalStateException("Cannot extract hash from address");
     }
 
     /**

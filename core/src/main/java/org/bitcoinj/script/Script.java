@@ -59,7 +59,9 @@ public class Script {
         NO_TYPE,
         P2PKH,
         PUB_KEY,
-        P2SH
+        P2SH,
+        P2WPKH,
+        P2WSH
     }
 
     /** Flags to pass to {@link Script#correctlySpends(Transaction, long, Script, Set)}.
@@ -255,6 +257,24 @@ public class Script {
     }
 
     /**
+     * Returns true if this script is of the form OP_0 &lt;160-bit pubkey hash&gt; (segwit P2WPKH).
+     */
+    public boolean isSentToP2WPKH() {
+        return chunks.size() == 2 &&
+               chunks.get(0).equalsOpCode(OP_0) &&
+               chunks.get(1).data.length == 20;
+    }
+
+    /**
+     * Returns true if this script is of the form OP_0 &lt;256-bit script hash&gt; (segwit P2WSH).
+     */
+    public boolean isSentToP2WSH() {
+        return chunks.size() == 2 &&
+               chunks.get(0).equalsOpCode(OP_0) &&
+               chunks.get(1).data.length == 32;
+    }
+
+    /**
      * <p>If a program matches the standard template DUP HASH160 &lt;pubkey hash&gt; EQUALVERIFY CHECKSIG
      * then this function retrieves the third element.
      * In this case, this is useful for fetching the destination address of a transaction.</p>
@@ -262,6 +282,12 @@ public class Script {
      * <p>If a program matches the standard template HASH160 &lt;script hash&gt; EQUAL
      * then this function retrieves the second element.
      * In this case, this is useful for fetching the hash of the redeem script of a transaction.</p>
+     *
+     * <p>If a program matches the segwit template 0 &lt;pubkey hash&gt; then this function retrieves the second
+     * element, which is the hash of the public key.</p>
+     *
+     * <p>If a program matches the segwit template 0 &lt;script hash&gt; then this function retrieves the second
+     * element, which is the hash of the segwit script.</p>
      * 
      * <p>Otherwise it throws a ScriptException.</p>
      *
@@ -269,7 +295,7 @@ public class Script {
     public byte[] getPubKeyHash() throws ScriptException {
         if (isSentToAddress())
             return chunks.get(2).data;
-        else if (isPayToScriptHash())
+        else if (isPayToScriptHash() || isSentToP2WPKH() || isSentToP2WSH())
             return chunks.get(1).data;
         else
             throw new ScriptException("Script not in the standard scriptPubKey form");
@@ -362,6 +388,10 @@ public class Script {
             return new Address(params, getPubKeyHash());
         else if (isPayToScriptHash())
             return Address.fromP2SHScript(params, this);
+        else if (isSentToP2WPKH())
+            return Address.fromP2WPKHHash(params, getPubKeyHash());
+        else if (isSentToP2WSH())
+            return Address.fromP2WSHHash(params, getPubKeyHash());
         else if (forcePayToPubKey && isSentToRawPubKey())
             return ECKey.fromPublicOnly(getPubKey()).toAddress(params);
         else
@@ -1669,5 +1699,22 @@ public class Script {
     @Override
     public int hashCode() {
         return Arrays.hashCode(getQuickProgram());
+    }
+
+    /**
+     * scriptCode for segwit. Read BIP143 for more information.
+     * @return
+     */
+    public Script scriptCode() {
+        if (isSentToP2WPKH())
+            return new ScriptBuilder()
+                .op(OP_DUP)
+                .op(OP_HASH160)
+                .data(getPubKeyHash())
+                .op(OP_EQUALVERIFY)
+                .op(OP_CHECKSIG)
+                .build();
+        else
+            throw new IllegalStateException("Computing scriptCode for anything but P2WPKH is not supported");
     }
 }

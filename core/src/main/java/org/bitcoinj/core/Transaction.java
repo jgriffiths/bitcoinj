@@ -196,6 +196,7 @@ public class Transaction extends ChildMessage {
         witnesses = new ArrayList<>();
         // We don't initialize appearsIn deliberately as it's only useful for transactions stored in the wallet.
         length = 8; // 8 for std fields
+        protocolVersion = params.getProtocolVersionNum(NetworkParameters.ProtocolVersion.CURRENT);
     }
 
     /**
@@ -218,9 +219,7 @@ public class Transaction extends ChildMessage {
      * @param params NetworkParameters object.
      * @param payload Bitcoin protocol formatted byte array containing message content.
      * @param offset The location of the first payload byte within the array.
-     * @param parseRetain Whether to retain the backing byte array for quick reserialization.
-     * If true and the backing byte array is invalidated due to modification of a field then
-     * the cached bytes may be repopulated and retained if the message is serialized again in the future.
+     * @param parent Parent message.
      * @param length The length of message if known.  Usually this is provided when deserializing of the wire
      * as the length will be provided as part of the header.  If unknown then set to Message.UNKNOWN_LENGTH
      * @throws ProtocolException
@@ -884,7 +883,7 @@ public class Transaction extends ChildMessage {
      * to understand the values of sigHash and anyoneCanPay: otherwise you can use the other form of this method
      * that sets them to typical defaults.
      *
-     * @throws ScriptException if the scriptPubKey is not a pay to address or pay to pubkey script.
+     * @throws ScriptException if the scriptPubKey is not a P2PKH, P2PK, or P2WPKH.
      */
     public TransactionInput addSignedInput(TransactionOutPoint prevOut, Script scriptPubKey, ECKey sigKey,
                                            SigHash sigHash, boolean anyoneCanPay) throws ScriptException {
@@ -892,15 +891,31 @@ public class Transaction extends ChildMessage {
         checkState(!outputs.isEmpty(), "Attempting to sign tx without outputs.");
         TransactionInput input = new TransactionInput(params, this, new byte[]{}, prevOut);
         addInput(input);
-        Sha256Hash hash = hashForSignature(inputs.size() - 1, scriptPubKey, sigHash, anyoneCanPay);
+        Sha256Hash hash;
+        if (scriptPubKey.isSentToP2WPKH() || /* although not supported at the moment */ scriptPubKey.isSentToP2WSH()) {
+            if (prevOut.getValue() == null)
+                throw new ScriptException("Cannot sign segwit script without value of previous output");
+            hash = hashForSignatureWitness(
+                inputs.size() - 1,
+                scriptPubKey.scriptCode(),
+                prevOut.getValue(),
+                sigHash,
+                anyoneCanPay);
+        } else {
+            hash = hashForSignature(inputs.size() - 1, scriptPubKey, sigHash, anyoneCanPay);
+        }
         ECKey.ECDSASignature ecSig = sigKey.sign(hash);
         TransactionSignature txSig = new TransactionSignature(ecSig, sigHash, anyoneCanPay);
-        if (scriptPubKey.isSentToRawPubKey())
+        if (scriptPubKey.isSentToRawPubKey()) {
             input.setScriptSig(ScriptBuilder.createInputScript(txSig));
-        else if (scriptPubKey.isSentToAddress())
+        } else if (scriptPubKey.isSentToAddress()) {
             input.setScriptSig(ScriptBuilder.createInputScript(txSig, sigKey));
-        else
+        } else if (scriptPubKey.isSentToP2WPKH()) {
+            TransactionWitness witness = TransactionWitness.createWitness(txSig, sigKey);
+            setWitness(inputs.size() - 1, witness);
+        } else {
             throw new ScriptException("Don't know how to sign for this kind of scriptPubKey: " + scriptPubKey);
+        }
         return input;
     }
 

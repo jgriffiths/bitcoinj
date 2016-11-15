@@ -17,9 +17,7 @@
 package org.bitcoinj.script;
 
 import com.google.common.collect.Lists;
-import org.bitcoinj.core.Address;
-import org.bitcoinj.core.ECKey;
-import org.bitcoinj.core.Utils;
+import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.TransactionSignature;
 
 import javax.annotation.Nullable;
@@ -223,6 +221,11 @@ public class ScriptBuilder {
                 .data(to.getHash160())
                 .op(OP_EQUAL)
                 .build();
+        } else if (to.isP2WPKHAddress() || to.isP2WSHAddress()) {
+            return new ScriptBuilder()
+                .smallNum(0)
+                .data(to.getHash())
+                .build();
         } else {
             // OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
             return new ScriptBuilder()
@@ -391,6 +394,21 @@ public class ScriptBuilder {
     }
 
     /**
+     * Creates a segwit scriptPubKey that sends to the given public key hash.
+     */
+    public static Script createP2WPKHOutputScript(byte[] hash) {
+        checkArgument(hash.length == 20);
+        return new ScriptBuilder().smallNum(0).data(hash).build();
+    }
+
+    /**
+     * Creates a segwit scriptPubKey that sends to the given public key.
+     */
+    public static Script createP2WPKHOutputScript(ECKey key) {
+        return createP2WPKHOutputScript(key.getPubKeyHash());
+    }
+
+    /**
      * Creates a scriptPubKey that sends to the given script hash. Read
      * <a href="https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki">BIP 16</a> to learn more about this
      * kind of script.
@@ -398,6 +416,15 @@ public class ScriptBuilder {
     public static Script createP2SHOutputScript(byte[] hash) {
         checkArgument(hash.length == 20);
         return new ScriptBuilder().op(OP_HASH160).data(hash).op(OP_EQUAL).build();
+    }
+
+    /**
+     * Creates a P2SH output script with given public keys and threshold. Given public keys will be placed in
+     * redeem script in the lexicographical sorting order.
+     */
+    public static Script createP2SHOutputScript(int threshold, List<ECKey> pubkeys) {
+        Script redeemScript = createRedeemScript(threshold, pubkeys);
+        return createP2SHOutputScript(redeemScript);
     }
 
     /**
@@ -409,12 +436,19 @@ public class ScriptBuilder {
     }
 
     /**
-     * Creates a P2SH output script with given public keys and threshold. Given public keys will be placed in
-     * redeem script in the lexicographical sorting order.
+     * Creates a segwit scriptPubKey for the given redeem script.
      */
-    public static Script createP2SHOutputScript(int threshold, List<ECKey> pubkeys) {
-        Script redeemScript = createRedeemScript(threshold, pubkeys);
-        return createP2SHOutputScript(redeemScript);
+    public static Script createP2WSHOutputScript(Script redeemScript) {
+        byte[] hash = Sha256Hash.hash(redeemScript.getProgram());
+        return ScriptBuilder.createP2WSHOutputScript(hash);
+    }
+
+    /**
+     * Creates a segwit scriptPubKey for the given redeem script sha256 hash.
+     */
+    public static Script createP2WSHOutputScript(byte[] hash) {
+        checkArgument(hash.length == 32);
+        return new ScriptBuilder().smallNum(0).data(hash).build();
     }
 
     /**
