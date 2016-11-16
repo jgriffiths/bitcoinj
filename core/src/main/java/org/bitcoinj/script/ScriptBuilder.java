@@ -262,6 +262,15 @@ public class ScriptBuilder {
         return new ScriptBuilder().data(sigBytes).build();
     }
 
+    /**
+     * Creates a scriptSig including a segwit program to use when paying to segwit outputs wrapped in P2SH.
+     * @param segwitProgram
+     * @return
+     */
+    public static Script createSegwitP2SHSigScript(Script segwitProgram) {
+        return new ScriptBuilder().data(segwitProgram.getProgram()).build();
+    }
+
     /** Creates a program that requires at least N of the given keys to sign, using OP_CHECKMULTISIG. */
     public static Script createMultiSigOutputScript(int threshold, List<ECKey> pubkeys) {
         checkArgument(threshold > 0);

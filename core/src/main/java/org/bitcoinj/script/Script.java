@@ -266,6 +266,16 @@ public class Script {
     }
 
     /**
+     * Returns true if this script is P2SH wrapping P2WPKH for provided key.
+     * @param pubKey
+     * @return
+     */
+    public boolean isSentToP2WPKHP2SH(ECKey pubKey) {
+        byte[] p2pkhHash = Utils.sha256hash160(ScriptBuilder.createP2WPKHOutputScript(pubKey).getProgram());
+        return (isPayToScriptHash() && Arrays.equals(p2pkhHash, getPubKeyHash()));
+    }
+
+    /**
      * Returns true if this script is of the form OP_0 &lt;256-bit script hash&gt; (segwit P2WSH).
      */
     public boolean isSentToP2WSH() {

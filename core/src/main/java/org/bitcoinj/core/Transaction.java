@@ -883,7 +883,7 @@ public class Transaction extends ChildMessage {
      * to understand the values of sigHash and anyoneCanPay: otherwise you can use the other form of this method
      * that sets them to typical defaults.
      *
-     * @throws ScriptException if the scriptPubKey is not a P2PKH, P2PK, or P2WPKH.
+     * @throws ScriptException if the scriptPubKey is not P2PKH, P2PK, P2WPKH, or P2WPKH wrapped in P2SH.
      */
     public TransactionInput addSignedInput(TransactionOutPoint prevOut, Script scriptPubKey, ECKey sigKey,
                                            SigHash sigHash, boolean anyoneCanPay) throws ScriptException {
@@ -892,12 +892,18 @@ public class Transaction extends ChildMessage {
         TransactionInput input = new TransactionInput(params, this, new byte[]{}, prevOut);
         addInput(input);
         Sha256Hash hash;
-        if (scriptPubKey.isSentToP2WPKH() || /* although not supported at the moment */ scriptPubKey.isSentToP2WSH()) {
+        // P2WSH not supported by this script
+        if (scriptPubKey.isSentToP2WPKH() || scriptPubKey.isSentToP2WPKHP2SH(sigKey) || scriptPubKey.isSentToP2WSH()) {
             if (prevOut.getValue() == null)
                 throw new ScriptException("Cannot sign segwit script without value of previous output");
+            Script scriptCode;
+            if (scriptPubKey.isSentToP2WPKHP2SH(sigKey))
+                scriptCode = ScriptBuilder.createP2WPKHOutputScript(sigKey).scriptCode();
+            else
+                scriptCode = scriptPubKey.scriptCode();
             hash = hashForSignatureWitness(
                 inputs.size() - 1,
-                scriptPubKey.scriptCode(),
+                scriptCode,
                 prevOut.getValue(),
                 sigHash,
                 anyoneCanPay);
@@ -913,8 +919,13 @@ public class Transaction extends ChildMessage {
         } else if (scriptPubKey.isSentToP2WPKH()) {
             TransactionWitness witness = TransactionWitness.createWitness(txSig, sigKey);
             setWitness(inputs.size() - 1, witness);
+        } else if (scriptPubKey.isSentToP2WPKHP2SH(sigKey)) {
+            TransactionWitness witness = TransactionWitness.createWitness(txSig, sigKey);
+            setWitness(inputs.size() - 1, witness);
+            Script p2wpkhProgram = ScriptBuilder.createP2WPKHOutputScript(sigKey);
+            input.setScriptSig(ScriptBuilder.createSegwitP2SHSigScript(p2wpkhProgram));
         } else {
-            throw new ScriptException("Don't know how to sign for this kind of scriptPubKey: " + scriptPubKey);
+            throw new ScriptException("Don't know how to sign this script with key provided: " + scriptPubKey);
         }
         return input;
     }
