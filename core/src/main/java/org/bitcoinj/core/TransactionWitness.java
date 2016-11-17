@@ -25,7 +25,7 @@ public class TransactionWitness {
         return pushes.length;
     }
 
-    void setPush(int i, byte[] value) {
+    public void setPush(int i, byte[] value) {
         pushes[i] = value;
     }
 

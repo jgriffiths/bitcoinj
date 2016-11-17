@@ -445,10 +445,10 @@ public class ScriptBuilder {
     }
 
     /**
-     * Creates a segwit scriptPubKey for the given redeem script.
+     * Creates a segwit P2WSH pubKeyScript for provided script.
      */
-    public static Script createP2WSHOutputScript(Script redeemScript) {
-        byte[] hash = Sha256Hash.hash(redeemScript.getProgram());
+    public static Script createP2WSHOutputScript(Script segwitScript) {
+        byte[] hash = Sha256Hash.hash(segwitScript.getProgram());
         return ScriptBuilder.createP2WSHOutputScript(hash);
     }
 

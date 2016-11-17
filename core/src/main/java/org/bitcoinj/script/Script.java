@@ -271,8 +271,8 @@ public class Script {
      * @return
      */
     public boolean isSentToP2WPKHP2SH(ECKey pubKey) {
-        byte[] p2pkhHash = Utils.sha256hash160(ScriptBuilder.createP2WPKHOutputScript(pubKey).getProgram());
-        return (isPayToScriptHash() && Arrays.equals(p2pkhHash, getPubKeyHash()));
+        byte[] scriptHash = Utils.sha256hash160(ScriptBuilder.createP2WPKHOutputScript(pubKey).getProgram());
+        return (isPayToScriptHash() && Arrays.equals(scriptHash, getPubKeyHash()));
     }
 
     /**
@@ -282,6 +282,17 @@ public class Script {
         return chunks.size() == 2 &&
                chunks.get(0).equalsOpCode(OP_0) &&
                chunks.get(1).data.length == 32;
+    }
+
+    /**
+     * Returns true if this is a P2SH pubKeyScript wrapping a P2WSH redeem script for provided segwit script.
+     * @param script
+     * @return
+     */
+    public boolean isSentToP2WSHP2SH(Script script) {
+        Script segwitProgram = ScriptBuilder.createP2WSHOutputScript(script);
+        byte[] scriptHash = Utils.sha256hash160(segwitProgram.getProgram());
+        return (isPayToScriptHash() && Arrays.equals(scriptHash, getPubKeyHash()));
     }
 
     /**
