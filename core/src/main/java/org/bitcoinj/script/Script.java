@@ -77,7 +77,8 @@ public class Script {
         MINIMALDATA, // Require minimal encodings for all push operations
         DISCOURAGE_UPGRADABLE_NOPS, // Discourage use of NOPs reserved for upgrades (NOP1-10)
         CLEANSTACK, // Require that only a single stack element remains after evaluation.
-        CHECKLOCKTIMEVERIFY // Enable CHECKLOCKTIMEVERIFY operation
+        CHECKLOCKTIMEVERIFY, // Enable CHECKLOCKTIMEVERIFY operation
+        SEGWIT // Enable segregated witnesses
     }
     public static final EnumSet<VerifyFlag> ALL_VERIFY_FLAGS = EnumSet.allOf(VerifyFlag.class);
 
@@ -903,15 +904,22 @@ public class Script {
         executeScript(txContainingThis, index, script, stack, flags);
     }
 
+    @Deprecated
+    public static void executeScript(@Nullable Transaction txContainingThis, long index,
+                                     Script script, LinkedList<byte[]> stack, Set<VerifyFlag> verifyFlags) throws ScriptException {
+        executeScript(txContainingThis, index, script, stack, Coin.ZERO, false, verifyFlags);
+    }
+
     /**
      * Exposes the script interpreter. Normally you should not use this directly, instead use
      * {@link org.bitcoinj.core.TransactionInput#verify(org.bitcoinj.core.TransactionOutput)} or
-     * {@link org.bitcoinj.script.Script#correctlySpends(org.bitcoinj.core.Transaction, long, Script)}. This method
+     * {@link org.bitcoinj.script.Script#correctlySpends(org.bitcoinj.core.Transaction, long, Script, Coin, Set<VerifyFlag>)}. This method
      * is useful if you need more precise control or access to the final state of the stack. This interface is very
      * likely to change in future.
      */
     public static void executeScript(@Nullable Transaction txContainingThis, long index,
-                                     Script script, LinkedList<byte[]> stack, Set<VerifyFlag> verifyFlags) throws ScriptException {
+                                     Script script, LinkedList<byte[]> stack, Coin value, boolean segwit,
+                                     Set<VerifyFlag> verifyFlags) throws ScriptException {
         int opCount = 0;
         int lastCodeSepLocation = 0;
         
@@ -1618,7 +1626,13 @@ public class Script {
     @Deprecated
     public void correctlySpends(Transaction txContainingThis, long scriptSigIndex, Script scriptPubKey)
             throws ScriptException {
-        correctlySpends(txContainingThis, scriptSigIndex, scriptPubKey, ALL_VERIFY_FLAGS);
+        correctlySpends(txContainingThis, scriptSigIndex, scriptPubKey, Coin.ZERO, ALL_VERIFY_FLAGS);
+    }
+
+    @Deprecated
+    public void correctlySpends(Transaction txContainingThis, long scriptSigIndex, Script scriptPubKey,
+                                Set<VerifyFlag> verifyFlags) throws ScriptException {
+        correctlySpends(txContainingThis, scriptSigIndex, scriptPubKey, Coin.ZERO, ALL_VERIFY_FLAGS);
     }
 
     /**
@@ -1627,10 +1641,11 @@ public class Script {
      *                         Accessing txContainingThis from another thread while this method runs results in undefined behavior.
      * @param scriptSigIndex The index in txContainingThis of the scriptSig (note: NOT the index of the scriptPubKey).
      * @param scriptPubKey The connected scriptPubKey containing the conditions needed to claim the value.
-     * @param verifyFlags Each flag enables one validation rule. If in doubt, use {@link #correctlySpends(Transaction, long, Script)}
+     * @param value The amount being spent by this script.
+     * @param verifyFlags Each flag enables one validation rule. If in doubt, use {@link #ALL_VERIFY_FLAGS)}
      *                    which sets all flags.
      */
-    public void correctlySpends(Transaction txContainingThis, long scriptSigIndex, Script scriptPubKey,
+    public void correctlySpends(Transaction txContainingThis, long scriptSigIndex, Script scriptPubKey, Coin value,
                                 Set<VerifyFlag> verifyFlags) throws ScriptException {
         // Clone the transaction because executing the script involves editing it, and if we die, we'll leave
         // the tx half broken (also it's not so thread safe to work on it directly.
@@ -1641,15 +1656,15 @@ public class Script {
         }
         if (getProgram().length > 10000 || scriptPubKey.getProgram().length > 10000)
             throw new ScriptException("Script larger than 10,000 bytes");
-        
+
         LinkedList<byte[]> stack = new LinkedList<>();
         LinkedList<byte[]> p2shStack = null;
         
-        executeScript(txContainingThis, scriptSigIndex, this, stack, verifyFlags);
+        executeScript(txContainingThis, scriptSigIndex, this, stack, value, false, verifyFlags);
         if (verifyFlags.contains(VerifyFlag.P2SH))
             p2shStack = new LinkedList<>(stack);
-        executeScript(txContainingThis, scriptSigIndex, scriptPubKey, stack, verifyFlags);
-        
+        executeScript(txContainingThis, scriptSigIndex, scriptPubKey, stack, value, false, verifyFlags);
+
         if (stack.size() == 0)
             throw new ScriptException("Stack empty at end of script execution.");
         
