@@ -1230,8 +1230,14 @@ public class Transaction extends ChildMessage {
      * @param type Should be SigHash.ALL
      * @param anyoneCanPay should be false.
      */
-    public synchronized Sha256Hash hashForSignatureWitness(int inputIndex, Script scriptCode, Coin prevValue, SigHash type, boolean anyoneCanPay) {
+    public synchronized Sha256Hash hashForSignatureWitness(int inputIndex, Script scriptCode, Coin prevValue,
+                                                           SigHash type, boolean anyoneCanPay) {
         byte[] connectedScript = scriptCode.getProgram();
+        return hashForSignatureWitness(inputIndex, connectedScript, prevValue, type, anyoneCanPay);
+    }
+
+    public synchronized Sha256Hash hashForSignatureWitness(int inputIndex, byte[] connectedScript, Coin prevValue,
+                                                           SigHash type, boolean anyoneCanPay) {
         byte sigHashType = (byte) TransactionSignature.calcSigHashValue(type, anyoneCanPay);
         ByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(length == UNKNOWN_LENGTH ? 256 : length + 4);
         try {
