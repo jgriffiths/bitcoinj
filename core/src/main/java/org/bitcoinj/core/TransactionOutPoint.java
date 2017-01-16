@@ -221,6 +221,10 @@ public class TransactionOutPoint extends ChildMessage {
         return value;
     }
 
+    public void setValue(Coin value) {
+        this.value = value;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

@@ -1733,11 +1733,12 @@ public class Script {
 
     private void checkWitness(Transaction tx, long index, Coin value, Set<VerifyFlag> verifyFlags) {
         if (verifyFlags.contains(VerifyFlag.SEGWIT) && isWitnessProgram()) {
-            Script scriptCode = scriptCode(tx, index);
+            TransactionWitness witness = tx.getWitness((int) index);
+            Script scriptCode = scriptCode(witness, index);
             LinkedList<byte[]> witnessStack = witnessStack(tx, index);
             executeScript(tx, index, scriptCode, witnessStack, value, true, verifyFlags);
 
-            if (witnessStack.size() == 0)
+            if (witnessStack.isEmpty())
                 throw new ScriptException("Witness stack empty at end of script execution.");
 
             if (!castToBool(witnessStack.pollLast()))
@@ -1790,11 +1791,10 @@ public class Script {
     }
 
     /**
-     * scriptCode for segwit. Read BIP143 for more information.
+     * scriptCode for segwit transactions when witness is known. Read BIP143 for more information.
      * @return
      */
-    public Script scriptCode(Transaction tx, long index) {
-        TransactionWitness witness = tx.getWitness((int) index);
+    public Script scriptCode(TransactionWitness witness, long index) {
         byte[] expectedHash = getPubKeyHash();
         byte[] pubKeyOrScript = witness.getPush(witness.getPushCount() - 1);
 
@@ -1816,7 +1816,7 @@ public class Script {
     }
 
     /**
-     * Simpler version of previous function for signing P2WPKH transactions.
+     * scriptCode for signing P2WPKH transactions. See BIP143.
      * @return
      */
     public Script scriptCode() {

@@ -414,6 +414,7 @@ public class ScriptBuilder {
      * Creates a segwit scriptPubKey that sends to the given public key.
      */
     public static Script createP2WPKHOutputScript(ECKey key) {
+        checkArgument(key.isCompressed());
         return createP2WPKHOutputScript(key.getPubKeyHash());
     }
 

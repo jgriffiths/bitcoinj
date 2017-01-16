@@ -1023,6 +1023,14 @@ public class Transaction extends ChildMessage {
         return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay);
     }
 
+    public TransactionSignature calculateWitnessSignature(int inputIndex, ECKey key,
+                                                          byte[] redeemScript,
+                                                          Coin value,
+                                                          SigHash hashType, boolean anyoneCanPay) {
+        Sha256Hash hash = hashForSignatureWitness(inputIndex, redeemScript, value, hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay);
+    }
+
     /**
      * Calculates a signature that is valid for being inserted into the input at the given position. This is simply
      * a wrapper around calling {@link Transaction#hashForSignature(int, byte[], org.bitcoinj.core.Transaction.SigHash, boolean)}
@@ -1039,6 +1047,14 @@ public class Transaction extends ChildMessage {
                                                                  Script redeemScript,
                                                                  SigHash hashType, boolean anyoneCanPay) {
         Sha256Hash hash = hashForSignature(inputIndex, redeemScript.getProgram(), hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay);
+    }
+
+    public TransactionSignature calculateWitnessSignature(int inputIndex, ECKey key,
+                                                          Script redeemScript,
+                                                          Coin value,
+                                                          SigHash hashType, boolean anyoneCanPay) {
+        Sha256Hash hash = hashForSignatureWitness(inputIndex, redeemScript.getProgram(), value, hashType, anyoneCanPay);
         return new TransactionSignature(key.sign(hash), hashType, anyoneCanPay);
     }
 
@@ -1064,6 +1080,15 @@ public class Transaction extends ChildMessage {
         return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
     }
 
+    public TransactionSignature calculateWitnessSignature(int inputIndex, ECKey key,
+                                                          @Nullable KeyParameter aesKey,
+                                                          byte[] redeemScript,
+                                                          Coin value,
+                                                          SigHash hashType, boolean anyoneCanPay) {
+        Sha256Hash hash = hashForSignatureWitness(inputIndex, redeemScript, value, hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
+    }
+
     /**
      * Calculates a signature that is valid for being inserted into the input at the given position. This is simply
      * a wrapper around calling {@link Transaction#hashForSignature(int, byte[], org.bitcoinj.core.Transaction.SigHash, boolean)}
@@ -1082,6 +1107,15 @@ public class Transaction extends ChildMessage {
                                                    Script redeemScript,
                                                    SigHash hashType, boolean anyoneCanPay) {
         Sha256Hash hash = hashForSignature(inputIndex, redeemScript.getProgram(), hashType, anyoneCanPay);
+        return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
+    }
+
+    public TransactionSignature calculateSignatureWitness(int inputIndex, ECKey key,
+                                                          @Nullable KeyParameter aesKey,
+                                                          Script redeemScript,
+                                                          Coin value,
+                                                          SigHash hashType, boolean anyoneCanPay) {
+        Sha256Hash hash = hashForSignatureWitness(inputIndex, redeemScript.getProgram(), value, hashType, anyoneCanPay);
         return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
     }
 

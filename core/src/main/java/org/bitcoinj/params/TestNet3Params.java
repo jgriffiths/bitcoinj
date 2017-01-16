@@ -35,6 +35,8 @@ import static com.google.common.base.Preconditions.checkState;
  * and testing of applications and new Bitcoin versions.
  */
 public class TestNet3Params extends AbstractBitcoinNetParams {
+    public static final int SEGWIT_ENFORCE_HEIGHT = 834624;
+
     public TestNet3Params() {
         super();
         id = ID_TESTNET;
