@@ -1110,7 +1110,7 @@ public class Transaction extends ChildMessage {
         return new TransactionSignature(key.sign(hash, aesKey), hashType, anyoneCanPay);
     }
 
-    public TransactionSignature calculateSignatureWitness(int inputIndex, ECKey key,
+    public TransactionSignature calculateWitnessSignature(int inputIndex, ECKey key,
                                                           @Nullable KeyParameter aesKey,
                                                           Script redeemScript,
                                                           Coin value,
