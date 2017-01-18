@@ -1289,9 +1289,7 @@ public class Transaction extends ChildMessage {
                 hashPrevouts = Sha256Hash.hashTwice(bosHashPrevouts.toByteArray());
             }
 
-            if (!anyoneCanPay &&
-                    (sigHashType & 0x1f) != (SigHash.SINGLE.ordinal() + 1) &&
-                    (sigHashType & 0x1f) != (SigHash.NONE.ordinal() + 1)) {
+            if (!anyoneCanPay && type != SigHash.SINGLE && type != SigHash.NONE) {
                 ByteArrayOutputStream bosSequence = new UnsafeByteArrayOutputStream(256);
                 for (int i = 0; i < this.inputs.size(); ++i) {
                     uint32ToByteStreamLE(this.inputs.get(i).getSequenceNumber(), bosSequence);
@@ -1299,8 +1297,7 @@ public class Transaction extends ChildMessage {
                 hashSequence = Sha256Hash.hashTwice(bosSequence.toByteArray());
             }
 
-            if ((sigHashType & 0x1f) != (SigHash.SINGLE.ordinal() + 1) &&
-                    (sigHashType & 0x1f) != (SigHash.NONE.ordinal() + 1)) {
+            if (type != SigHash.SINGLE && type != SigHash.NONE) {
                 ByteArrayOutputStream bosHashOutputs = new UnsafeByteArrayOutputStream(256);
                 for (int i = 0; i < this.outputs.size(); ++i) {
                     uint64ToByteStreamLE(
@@ -1311,7 +1308,7 @@ public class Transaction extends ChildMessage {
                     bosHashOutputs.write(this.outputs.get(i).getScriptBytes());
                 }
                 hashOutputs = Sha256Hash.hashTwice(bosHashOutputs.toByteArray());
-            } else if ((sigHashType & 0x1f) == (SigHash.SINGLE.ordinal() + 1) && inputIndex < outputs.size()) {
+            } else if (type == SigHash.SINGLE && inputIndex < outputs.size()) {
                 ByteArrayOutputStream bosHashOutputs = new UnsafeByteArrayOutputStream(256);
                 uint64ToByteStreamLE(
                         BigInteger.valueOf(this.outputs.get(inputIndex).getValue().getValue()),
@@ -1332,11 +1329,12 @@ public class Transaction extends ChildMessage {
             uint32ToByteStreamLE(inputs.get(inputIndex).getSequenceNumber(), bos);
             bos.write(hashOutputs);
             uint32ToByteStreamLE(this.lockTime, bos);
-            uint32ToByteStreamLE(sigHashType, bos);
+            uint32ToByteStreamLE(0x000000ff & sigHashType, bos);
         } catch (IOException e) {
             throw new RuntimeException(e);  // Cannot happen.
         }
 
+        System.out.println(HEX.encode(bos.toByteArray()));
         return Sha256Hash.twiceOf(bos.toByteArray());
     }
 
