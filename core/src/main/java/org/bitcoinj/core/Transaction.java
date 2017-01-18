@@ -1334,7 +1334,6 @@ public class Transaction extends ChildMessage {
             throw new RuntimeException(e);  // Cannot happen.
         }
 
-        System.out.println(HEX.encode(bos.toByteArray()));
         return Sha256Hash.twiceOf(bos.toByteArray());
     }
 

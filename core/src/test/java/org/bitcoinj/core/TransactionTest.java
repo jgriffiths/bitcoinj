@@ -487,6 +487,9 @@ public class TransactionTest {
         tx.setWitness(1, witness);
 
         assertArrayEquals(signedTx, tx.bitcoinSerialize());
+
+        tx.getInput(1).getScriptSig().correctlySpends(
+            tx, 1, scriptPubKey, value, Script.ALL_VERIFY_FLAGS);
     }
 
     /**

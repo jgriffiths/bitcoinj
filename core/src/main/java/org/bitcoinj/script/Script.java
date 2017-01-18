@@ -20,6 +20,8 @@ package org.bitcoinj.script;
 
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.TransactionSignature;
+import static org.bitcoinj.core.Utils.HEX;
+
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1396,13 +1398,32 @@ public class Script {
                 case OP_CHECKSIGVERIFY:
                     if (txContainingThis == null)
                         throw new IllegalStateException("Script attempted signature check but no tx was provided");
-                    executeCheckSig(txContainingThis, (int) index, script, stack, lastCodeSepLocation, opcode, verifyFlags);
+                    executeCheckSig(
+                        txContainingThis,
+                        (int) index,
+                        script,
+                        stack,
+                        lastCodeSepLocation,
+                        opcode,
+                        value,
+                        segwit,
+                        verifyFlags);
                     break;
                 case OP_CHECKMULTISIG:
                 case OP_CHECKMULTISIGVERIFY:
                     if (txContainingThis == null)
                         throw new IllegalStateException("Script attempted signature check but no tx was provided");
-                    opCount = executeMultiSig(txContainingThis, (int) index, script, stack, opCount, lastCodeSepLocation, opcode, verifyFlags);
+                    opCount = executeMultiSig(
+                        txContainingThis,
+                        (int) index,
+                        script,
+                        stack,
+                        opCount,
+                        lastCodeSepLocation,
+                        opcode,
+                        value,
+                        segwit,
+                        verifyFlags);
                     break;
                 case OP_CHECKLOCKTIMEVERIFY:
                     if (!verifyFlags.contains(VerifyFlag.CHECKLOCKTIMEVERIFY)) {
@@ -1734,8 +1755,8 @@ public class Script {
     private void checkWitness(Transaction tx, long index, Coin value, Set<VerifyFlag> verifyFlags) {
         if (verifyFlags.contains(VerifyFlag.SEGWIT) && isWitnessProgram()) {
             TransactionWitness witness = tx.getWitness((int) index);
-            Script scriptCode = scriptCode(witness, index);
-            LinkedList<byte[]> witnessStack = witnessStack(tx, index);
+            Script scriptCode = scriptCode(witness);
+            LinkedList<byte[]> witnessStack = witnessStack(witness);
             executeScript(tx, index, scriptCode, witnessStack, value, true, verifyFlags);
 
             if (witnessStack.isEmpty())
@@ -1791,10 +1812,10 @@ public class Script {
     }
 
     /**
-     * scriptCode for segwit transactions when witness is known. Read BIP143 for more information.
+     * scriptCode for witness. Read BIP143 for more information.
      * @return
      */
-    public Script scriptCode(TransactionWitness witness, long index) {
+    public Script scriptCode(TransactionWitness witness) {
         byte[] expectedHash = getPubKeyHash();
         byte[] pubKeyOrScript = witness.getPush(witness.getPushCount() - 1);
 
@@ -1816,7 +1837,7 @@ public class Script {
     }
 
     /**
-     * scriptCode for signing P2WPKH transactions. See BIP143.
+     * scriptCode for P2WPKH transactions. See BIP143.
      * @return
      */
     public Script scriptCode() {
@@ -1832,9 +1853,8 @@ public class Script {
             throw new IllegalStateException("This method cannot compute scriptCode for anything but P2WPKH");
     }
 
-    public LinkedList<byte[]> witnessStack(Transaction tx, long index) {
+    public LinkedList<byte[]> witnessStack(TransactionWitness witness) {
         LinkedList<byte[]> stack = new LinkedList<byte[]>();
-        TransactionWitness witness = tx.getWitness((int) index);
 
         if (isSentToP2WPKH()) {
             stack.add(witness.getPush(0));
