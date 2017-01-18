@@ -20,7 +20,6 @@ package org.bitcoinj.script;
 
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.TransactionSignature;
-import static org.bitcoinj.core.Utils.HEX;
 
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
