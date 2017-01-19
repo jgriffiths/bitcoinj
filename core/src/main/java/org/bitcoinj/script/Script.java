@@ -36,6 +36,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+import static org.bitcoinj.core.Utils.HEX;
 import static org.bitcoinj.script.ScriptOpCodes.*;
 import static com.google.common.base.Preconditions.*;
 
@@ -593,7 +594,7 @@ public class Script {
             }
         }
 
-        throw new IllegalStateException("Could not find matching key for signature on " + hash.toString() + " sig " + Utils.HEX.encode(signatureBytes));
+        throw new IllegalStateException("Could not find matching key for signature on " + hash.toString() + " sig " + HEX.encode(signatureBytes));
     }
 
 
