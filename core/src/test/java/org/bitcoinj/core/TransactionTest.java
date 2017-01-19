@@ -672,4 +672,97 @@ public class TransactionTest {
         final byte[] signedTx = HEX.decode("01000000000102e9b542c5176808107ff1df906f46bb1f2583b16112b95ee5380665ba7fcfc0010000000000ffffffff80e68831516392fcd100d186b3c2c7b95c80b53c77e77c35ba03a66b429a2a1b0000000000ffffffff0280969800000000001976a914de4b231626ef508c9a74a8517e6783c0546d6b2888ac80969800000000001976a9146648a8cd4531e1ec47f35916de8e259237294d1e88ac02483045022100f6a10b8604e6dc910194b79ccfc93e1bc0ec7c03453caaa8987f7d6c3413566002206216229ede9b4d6ec2d325be245c5b508ff0339bf1794078e20bfe0babc7ffe683270063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac024730440220032521802a76ad7bf74d0e2c218b72cf0cbc867066e2e53db905ba37f130397e02207709e2188ed7f08f4c952d9d13986da504502b8c3be59617e043552f506c46ff83275163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac00000000");
         assertArrayEquals(signedTx, tx.bitcoinSerialize());
     }
+
+    /**
+     * Segwit multisig with different SIGHASH types. From BIP-143.
+     */
+    @Test
+    public void testSegwitMultisig() {
+        final byte[] unsignedTxBin = HEX.decode("010000000136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000000ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac00000000");
+        final Transaction tx = new Transaction(MainNetParams.get(), unsignedTxBin);
+        final Script scriptPubKey = new Script(HEX.decode("a9149993a429037b5d912407a71c252019287b8d27a587"));
+        final Script redeemScript = new Script(HEX.decode("0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"));
+        final Script witnessScript = new Script(HEX.decode("56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae"));
+        final Coin value = Coin.valueOf(987654321L);
+
+        final byte[] expectedSigHashAll = HEX.decode("185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c");
+        final Sha256Hash sigHashAll = tx.hashForSignatureWitness(
+            0, witnessScript, value, Transaction.SigHash.ALL, false);
+        assertArrayEquals(expectedSigHashAll, sigHashAll.getBytes());
+
+        final byte[] expectedSig0 = HEX.decode("304402206ac44d672dac41f9b00e28f4df20c52eeb087207e8d758d76d92c6fab3b73e2b0220367750dbbe19290069cba53d096f44530e4f98acaa594810388cf7409a1870ce01");
+        final ECKey prvKey0 = ECKey.fromPrivate(HEX.decode("730fff80e1413068a05b57d6a58261f07551163369787f349438ea38ca80fac6"));
+        final TransactionSignature sig0 = tx.calculateWitnessSignature(
+            0, prvKey0, witnessScript, value, Transaction.SigHash.ALL, false);
+        assertArrayEquals(expectedSig0, sig0.encodeToBitcoin());
+
+        final byte[] expectedSigHashNone = HEX.decode("e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36");
+        final Sha256Hash sigHashNone = tx.hashForSignatureWitness(
+            0, witnessScript, value, Transaction.SigHash.NONE, false);
+        assertArrayEquals(expectedSigHashNone, sigHashNone.getBytes());
+
+        final byte[] expectedSig1 = HEX.decode("3044022068c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d9002205b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce271502");
+        final ECKey prvKey1 = ECKey.fromPrivate(HEX.decode("11fa3d25a17cbc22b29c44a484ba552b5a53149d106d3d853e22fdd05a2d8bb3"));
+        final TransactionSignature sig1 = tx.calculateWitnessSignature(
+            0, prvKey1, witnessScript, value, Transaction.SigHash.NONE, false);
+        assertArrayEquals(expectedSig1, sig1.encodeToBitcoin());
+
+        final byte[] expectedSigHashSingle = HEX.decode("1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea");
+        final Sha256Hash sigHashSingle = tx.hashForSignatureWitness(
+            0, witnessScript, value, Transaction.SigHash.SINGLE, false);
+        assertArrayEquals(expectedSigHashSingle, sigHashSingle.getBytes());
+
+        final byte[] expectedSig2 = HEX.decode("3044022059ebf56d98010a932cf8ecfec54c48e6139ed6adb0728c09cbe1e4fa0915302e022007cd986c8fa870ff5d2b3a89139c9fe7e499259875357e20fcbb15571c76795403");
+        final ECKey prvKey2 = ECKey.fromPrivate(HEX.decode("77bf4141a87d55bdd7f3cd0bdccf6e9e642935fec45f2f30047be7b799120661"));
+        final TransactionSignature sig2 = tx.calculateWitnessSignature(
+            0, prvKey2, witnessScript, value, Transaction.SigHash.SINGLE, false);
+        assertArrayEquals(expectedSig2, sig2.encodeToBitcoin());
+
+        final byte[] expectedSigHashAllAnyone = HEX.decode("2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e");
+        final Sha256Hash sigHashAllAnyone = tx.hashForSignatureWitness(
+            0, witnessScript, value, Transaction.SigHash.ALL, true);
+        assertArrayEquals(expectedSigHashAllAnyone, sigHashAllAnyone.getBytes());
+
+        final byte[] expectedSig3 = HEX.decode("3045022100fbefd94bd0a488d50b79102b5dad4ab6ced30c4069f1eaa69a4b5a763414067e02203156c6a5c9cf88f91265f5a942e96213afae16d83321c8b31bb342142a14d16381");
+        final ECKey prvKey3 = ECKey.fromPrivate(HEX.decode("14af36970f5025ea3e8b5542c0f8ebe7763e674838d08808896b63c3351ffe49"));
+        final TransactionSignature sig3 = tx.calculateWitnessSignature(
+            0, prvKey3, witnessScript, value, Transaction.SigHash.ALL, true);
+        assertArrayEquals(expectedSig3, sig3.encodeToBitcoin());
+
+        final byte[] expectedSigHashNoneAnyone = HEX.decode("781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a");
+        final Sha256Hash sigHashNoneAnyone = tx.hashForSignatureWitness(
+            0, witnessScript, value, Transaction.SigHash.NONE, true);
+        assertArrayEquals(expectedSigHashNoneAnyone, sigHashNoneAnyone.getBytes());
+
+        final byte[] expectedSig4 = HEX.decode("3045022100a5263ea0553ba89221984bd7f0b13613db16e7a70c549a86de0cc0444141a407022005c360ef0ae5a5d4f9f2f87a56c1546cc8268cab08c73501d6b3be2e1e1a8a0882");
+        final ECKey prvKey4 = ECKey.fromPrivate(HEX.decode("fe9a95c19eef81dde2b95c1284ef39be497d128e2aa46916fb02d552485e0323"));
+        final TransactionSignature sig4 = tx.calculateWitnessSignature(
+            0, prvKey4, witnessScript, value, Transaction.SigHash.NONE, true);
+        assertArrayEquals(expectedSig4, sig4.encodeToBitcoin());
+
+        final byte[] expectedSigHashSingleAnyone = HEX.decode("511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b");
+        final Sha256Hash sigHashSingleAnyone = tx.hashForSignatureWitness(
+            0, witnessScript, value, Transaction.SigHash.SINGLE, true);
+        assertArrayEquals(expectedSigHashSingleAnyone, sigHashSingleAnyone.getBytes());
+
+        final byte[] expectedSig5 = HEX.decode("30440220525406a1482936d5a21888260dc165497a90a15669636d8edca6b9fe490d309c022032af0c646a34a44d1f4576bf6a4a74b67940f8faa84c7df9abe12a01a11e2b4783");
+        final ECKey prvKey5 = ECKey.fromPrivate(HEX.decode("428a7aee9f0c2af0cd19af3cf1c78149951ea528726989b2e83e4778d2c3f890"));
+        final TransactionSignature sig5 = tx.calculateWitnessSignature(
+            0, prvKey5, witnessScript, value, Transaction.SigHash.SINGLE, true);
+        assertArrayEquals(expectedSig5, sig5.encodeToBitcoin());
+
+        final byte[] signedTx = HEX.decode("0100000000010136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000023220020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac080047304402206ac44d672dac41f9b00e28f4df20c52eeb087207e8d758d76d92c6fab3b73e2b0220367750dbbe19290069cba53d096f44530e4f98acaa594810388cf7409a1870ce01473044022068c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d9002205b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce271502473044022059ebf56d98010a932cf8ecfec54c48e6139ed6adb0728c09cbe1e4fa0915302e022007cd986c8fa870ff5d2b3a89139c9fe7e499259875357e20fcbb15571c76795403483045022100fbefd94bd0a488d50b79102b5dad4ab6ced30c4069f1eaa69a4b5a763414067e02203156c6a5c9cf88f91265f5a942e96213afae16d83321c8b31bb342142a14d16381483045022100a5263ea0553ba89221984bd7f0b13613db16e7a70c549a86de0cc0444141a407022005c360ef0ae5a5d4f9f2f87a56c1546cc8268cab08c73501d6b3be2e1e1a8a08824730440220525406a1482936d5a21888260dc165497a90a15669636d8edca6b9fe490d309c022032af0c646a34a44d1f4576bf6a4a74b67940f8faa84c7df9abe12a01a11e2b4783cf56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae00000000");
+        tx.getInput(0).setScriptBytes(new ScriptBuilder().data(redeemScript.getProgram()).build().getProgram());
+        final TransactionWitness witness = new TransactionWitness(8);
+        witness.setPush(0, new byte[0]);
+        witness.setPush(1, sig0.encodeToBitcoin());
+        witness.setPush(2, sig1.encodeToBitcoin());
+        witness.setPush(3, sig2.encodeToBitcoin());
+        witness.setPush(4, sig3.encodeToBitcoin());
+        witness.setPush(5, sig4.encodeToBitcoin());
+        witness.setPush(6, sig5.encodeToBitcoin());
+        witness.setPush(7, witnessScript.getProgram());
+        tx.setWitness(0, witness);
+        assertArrayEquals(signedTx, tx.bitcoinSerialize());
+    }
 }
