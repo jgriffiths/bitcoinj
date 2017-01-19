@@ -151,12 +151,6 @@ public abstract class NetworkParameters {
     public static final int BIP16_ENFORCE_TIME = 1333238400;
 
     /**
-     * Blocks with a height at or above this should enforce segwit (BIP 141/143). -1 means do not enforce ever.
-     * Not implementing BIP-9. This value should be entered manually.
-     */
-    public static final int SEGWIT_ENFORCE_HEIGHT = -1;
-
-    /**
      * The maximum number of coins to be generated
      */
     public static final long MAX_COINS = 21000000;

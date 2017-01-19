@@ -19,14 +19,13 @@ package org.bitcoinj.params;
 
 import java.math.BigInteger;
 import java.util.Date;
+import java.util.EnumSet;
 
-import org.bitcoinj.core.Block;
-import org.bitcoinj.core.NetworkParameters;
-import org.bitcoinj.core.StoredBlock;
-import org.bitcoinj.core.Utils;
-import org.bitcoinj.core.VerificationException;
+import org.bitcoinj.core.*;
+import org.bitcoinj.script.Script;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
+import org.bitcoinj.utils.VersionTally;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -35,7 +34,7 @@ import static com.google.common.base.Preconditions.checkState;
  * and testing of applications and new Bitcoin versions.
  */
 public class TestNet3Params extends AbstractBitcoinNetParams {
-    public static final int SEGWIT_ENFORCE_HEIGHT = 834624;
+    public static final int SEGWIT_ENFORCE_HEIGHT = 834624; // TODO: implement BIP-9 instead
 
     public TestNet3Params() {
         super();
@@ -122,5 +121,18 @@ public class TestNet3Params extends AbstractBitcoinNetParams {
         } else {
             super.checkDifficultyTransitions(storedPrev, nextBlock, blockStore);
         }
+    }
+
+    // TODO: implement BIP-9 instead
+    @Override
+    public EnumSet<Script.VerifyFlag> getTransactionVerificationFlags(
+        final Block block,
+        final Transaction transaction,
+        final VersionTally tally,
+        final Integer height)
+    {
+        final EnumSet<Script.VerifyFlag> flags = super.getTransactionVerificationFlags(block, transaction, tally, height);
+        if (height >= SEGWIT_ENFORCE_HEIGHT) flags.add(Script.VerifyFlag.SEGWIT);
+        return flags;
     }
 }
